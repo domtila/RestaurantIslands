@@ -7,82 +7,74 @@ use Illuminate\Http\Request;
 use App\Models\Restaurant;
 
 class RestaurantController extends Controller
-
 {
+
     public function createRestaurant(Request $request)
     {
-        $validatedData = $request->validate([
-            'name' => 'required|string',
-            'description' => 'required|string',
-            'location' => 'required|string',
+        $request->validate([
+            'name' => 'required',
+            'location_id' => 'required|integer|exists:locations,id'
         ]);
 
-        try {
-            $Restaurant = Restaurant::create([
-                'name' => $validatedData['name'],
-                'location' => $validatedData['location'],
-                'description' => $validatedData['description']
-            ]);
+        $restaurant = new Restaurant;
+        $restaurant->name = $request->name;
+        $restaurant->description = $request->description;
+        $restaurant->location_id = $request->location_id;
+        $restaurant->save();
 
-            if ($Restaurant) {
-                return response()->json("Restaurant Saved Successfully");
-            } else {
-                return response()->json("Restaurant Not Saved");
-            }
-        } catch (\Exception $e) {
-            return response()->json(['error' => $e->getMessage()], 500);
-        }
+        $restaurantCheck = Restaurant::find($restaurant->id);
+
+        return response()->json($restaurantCheck);
     }
 
-    public function index()
+    //Get all restaurants
+    public function getRestaurants()
     {
-        try {
-            $Restaurants = Restaurant::all();
-
-            if ($Restaurants) {
-                return response()->json($Restaurants);
-            } else {
-                return response()->json("No Restaurant Found");
-            }
-        } catch (\Exception $e) {
-            return response()->json(['error' => $e->getMessage()], 500);
+        $restaurant = Restaurant::all();
+        if ($restaurant) {
+            return response()->json($restaurant);
+        } else {
+            return response("No Restaurant was found.");
         }
     }
 
+    //Get a restaurant
     public function getRestaurant($id)
     {
         try {
-            $Restaurant = Restaurant::findOrFail($id);
-
-            if ($Restaurant) {
-                return response()->json($Restaurant);
-            } else {
-                return response()->json("Restaurant With id `$id` Was not found");
-            }
+            $restaurant = Restaurant::findOrFail($id);
+            return response()->json($restaurant);
         } catch (\Exception $e) {
-            return response()->json(['error' => $e->getMessage()], 500);
+            return response()->json([
+                "error" => "Restaurant Not found with id: ",
+                $id
+            ], 404);
         }
     }
 
+    //Update a Restaurant
     public function updateRestaurant(Request $request, $id)
     {
-        $validatedData = $request->validate([
-            'name' => 'required|string',
-            'location' => 'required|string',
-            'description' => 'required|string'
+        $request->validate([
+            'name' => 'required',
+            'location_id' => 'required|integer|exists:locations,id'
         ]);
-
         try {
-            $Restaurant = Restaurant::findOrFail($id);
-            $Restaurant->update([
-                'name' => $validatedData['name'],
-                'location' => $validatedData['location'],
-                'description' => $validatedData['description']
-            ]);
+            $existingRestaurant = Restaurant::findOrFail($id);
+            if ($existingRestaurant) {
+                $existingRestaurant->name = $request->name;
+                $existingRestaurant->description = $request->description;
+                $existingRestaurant->location_id = $request->location_id;
+                $existingRestaurant->save();
 
-            return response()->json("Restaurant Updated Successfully");
+                return response()->json($existingRestaurant);
+            } else {
+                response()->json("No Record Found!");
+            }
         } catch (\Exception $e) {
-            return response()->json(['error' => $e->getMessage()], 500);
+            return response()->json([
+                "error" => "Restaurant could not be updated!"
+            ], 404);
         }
     }
 
@@ -93,13 +85,15 @@ class RestaurantController extends Controller
             if ($existingRestaurant) {
                 $existingRestaurant->delete();
                 return response()->json([
-                    "Success" => "Restaurant id $id Deleted Successfully"
+                    "deleted" => $existingRestaurant
                 ]);
             } else {
-                return response()->json("Restaurant Not Found!");
+                return response("Restaurant does not exist");
             }
         } catch (\Exception $e) {
-            return response()->json(['error' => $e->getMessage()], 500);
+            return response()->json([
+                "error" => "Restaurant could not be deleted!"
+            ], 403);
         }
     }
 }
